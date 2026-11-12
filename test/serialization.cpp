@@ -285,7 +285,19 @@ BOOST_AUTO_TEST_CASE(test_collision_data) {
   // testing serialization with valid pointers
   // we need to add a post load hook to remap the contact's internal pointers to
   // the shapes
+  // A witness simplex of rank 3, filled with arbitrary values.
+  WitnessSimplex witness;
+  witness.rank = 3;
+  witness.weights = {0.2, 0.3, 0.5, 0.};
+  witness.hints[1] << 4, 7;
+  witness.hints[2] << 1, 0;
+  for (std::size_t k = 0; k < 3; ++k) {
+    witness.support_points[0][k].setRandom();
+    witness.support_points[1][k].setRandom();
+  }
+
   Contact contact0(&sphere, &box, 1, 2, Vec3s::Ones(), Vec3s::Zero(), -10.);
+  contact0.witness = witness;
   test_serialization(contact0,
                      [&](Contact& c) { c.resolveReferences({&sphere, &box}); });
 
@@ -319,6 +331,7 @@ BOOST_AUTO_TEST_CASE(test_collision_data) {
   distance_result.normal.setOnes();
   distance_result.nearest_points[0].setRandom();
   distance_result.nearest_points[1].setRandom();
+  distance_result.witness = witness;
   distance_result.o1 = &sphere;
   distance_result.o2 = &box;
   test_serialization(distance_result, [&](DistanceResult& dr) {

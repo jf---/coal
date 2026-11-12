@@ -12,6 +12,15 @@ namespace boost {
 namespace serialization {
 
 template <class Archive>
+void serialize(Archive& ar, coal::WitnessSimplex& witness,
+               const unsigned int /*version*/) {
+  ar& make_nvp("rank", witness.rank);
+  ar& make_nvp("weights", witness.weights);
+  ar& make_nvp("hints", witness.hints);
+  ar& make_nvp("support_points", witness.support_points);
+}
+
+template <class Archive>
 void save(Archive& ar, const coal::Contact& contact,
           const unsigned int /*version*/) {
   ar& make_nvp("b1", contact.b1);
@@ -20,6 +29,7 @@ void save(Archive& ar, const coal::Contact& contact,
   ar& make_nvp("nearest_points", contact.nearest_points);
   ar& make_nvp("pos", contact.pos);
   ar& make_nvp("penetration_depth", contact.penetration_depth);
+  ar& make_nvp("witness", contact.witness);
 }
 
 template <class Archive>
@@ -33,6 +43,7 @@ void load(Archive& ar, coal::Contact& contact, const unsigned int /*version*/) {
   contact.nearest_points[1] = nearest_points[1];
   ar >> make_nvp("pos", contact.pos);
   ar >> make_nvp("penetration_depth", contact.penetration_depth);
+  ar >> make_nvp("witness", contact.witness);
   contact.o1 = NULL;
   contact.o2 = NULL;
 }
@@ -147,6 +158,7 @@ void save(Archive& ar, const coal::DistanceResult& distance_result,
   ar& make_nvp("normal", distance_result.normal);
   ar& make_nvp("b1", distance_result.b1);
   ar& make_nvp("b2", distance_result.b2);
+  ar& make_nvp("witness", distance_result.witness);
 }
 
 template <class Archive>
@@ -162,6 +174,7 @@ void load(Archive& ar, coal::DistanceResult& distance_result,
   ar >> make_nvp("normal", distance_result.normal);
   ar >> make_nvp("b1", distance_result.b1);
   ar >> make_nvp("b2", distance_result.b2);
+  ar >> make_nvp("witness", distance_result.witness);
   distance_result.o1 = NULL;
   distance_result.o2 = NULL;
 }

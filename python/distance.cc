@@ -142,6 +142,7 @@ void exposeDistanceAPI() {
         .DEF_RO_CLASS_ATTRIB(DistanceResult, o2)
         .DEF_RW_CLASS_ATTRIB(DistanceResult, b1)
         .DEF_RW_CLASS_ATTRIB(DistanceResult, b2)
+        .DEF_RW_CLASS_ATTRIB(DistanceResult, witness)
 
         .def("clear", &DistanceResult::clear,
              doxygen::member_func_doc(&DistanceResult::clear))

@@ -57,6 +57,7 @@ void CollisionResult::swapObjects() {
     std::swap(it->b1, it->b2);
     it->nearest_points[0].swap(it->nearest_points[1]);
     it->normal *= -1;
+    it->witness.swapShapes();
   }
 }
 

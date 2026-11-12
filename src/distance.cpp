@@ -86,6 +86,7 @@ Scalar distance(const CollisionGeometry* o1, const Transform3s& tf1,
       std::swap(result.o1, result.o2);
       result.nearest_points[0].swap(result.nearest_points[1]);
       result.normal *= -1;
+      result.witness.swapShapes();
     }
   } else {
     if (!looktable.distance_matrix[node_type1][node_type2]) {
@@ -147,6 +148,7 @@ Scalar ComputeDistance::run(const Transform3s& tf1, const Transform3s& tf2,
     std::swap(result.o1, result.o2);
     result.nearest_points[0].swap(result.nearest_points[1]);
     result.normal *= -1;
+    result.witness.swapShapes();
   } else {
     res = func(o1, tf1, o2, tf2, &solver, request, result);
   }

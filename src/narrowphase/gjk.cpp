@@ -93,40 +93,40 @@ namespace details {
 //   w1 = alpha * w[0].w1 + (1 - alpha) * w[1].w1
 // clang-format on
 // TODO
-void getClosestPoints(const GJK::Simplex& simplex, Vec3ps& w0, Vec3ps& w1) {
+/// The weights of the simplex's vertices in the point of the simplex closest to
+/// the origin.
+void getClosestPointWeights(const GJK::Simplex& simplex,
+                            std::array<SolverScalar, 4>& weights) {
   GJK::SimplexV* const* vs = simplex.vertex;
 
   for (GJK::vertex_id_t i = 0; i < simplex.rank; ++i) {
     assert(vs[i]->w.isApprox(vs[i]->w0 - vs[i]->w1));
   }
 
+  weights.fill(0);
   Project<SolverScalar>::ProjectResult projection;
   switch (simplex.rank) {
     case 1:
-      w0 = vs[0]->w0;
-      w1 = vs[0]->w1;
+      weights[0] = 1;
       return;
     case 2: {
-      const Vec3ps &a = vs[0]->w, a0 = vs[0]->w0, a1 = vs[0]->w1, b = vs[1]->w,
-                   b0 = vs[1]->w0, b1 = vs[1]->w1;
+      const Vec3ps &a = vs[0]->w, b = vs[1]->w;
       SolverScalar la, lb;
       Vec3ps N(b - a);
       la = N.dot(-a);
       if (la <= 0) {
         assert(false);
-        w0 = a0;
-        w1 = a1;
+        weights[0] = 1;
       } else {
         lb = N.squaredNorm();
         if (la > lb) {
           assert(false);
-          w0 = b0;
-          w1 = b1;
+          weights[1] = 1;
         } else {
           lb = la / lb;
           la = 1 - lb;
-          w0 = la * a0 + lb * b0;
-          w1 = la * a1 + lb * b1;
+          weights[0] = la;
+          weights[1] = lb;
         }
       }
     }
@@ -144,13 +144,40 @@ void getClosestPoints(const GJK::Simplex& simplex, Vec3ps& w0, Vec3ps& w1) {
       COAL_THROW_PRETTY("The simplex rank must be in [ 1, 4 ]",
                         std::logic_error);
   }
+  for (GJK::vertex_id_t i = 0; i < simplex.rank; ++i) {
+    weights[i] = projection.parameterization[i];
+  }
+}
+
+void getClosestPoints(const GJK::Simplex& simplex, Vec3ps& w0, Vec3ps& w1) {
+  std::array<SolverScalar, 4> weights;
+  getClosestPointWeights(simplex, weights);
+  GJK::SimplexV* const* vs = simplex.vertex;
+  if (simplex.rank == 1) {
+    w0 = vs[0]->w0;
+    w1 = vs[0]->w1;
+    return;
+  }
   w0.setZero();
   w1.setZero();
   for (GJK::vertex_id_t i = 0; i < simplex.rank; ++i) {
-    w0 += projection.parameterization[i] * vs[i]->w0;
-    w1 += projection.parameterization[i] * vs[i]->w1;
+    w0 += weights[i] * vs[i]->w0;
+    w1 += weights[i] * vs[i]->w1;
   }
-  return;
+}
+
+void getWitnessSimplex(const GJK::Simplex& simplex, WitnessSimplex& witness) {
+  getClosestPointWeights(simplex, witness.weights);
+  witness.rank = simplex.rank;
+  for (GJK::vertex_id_t i = 0; i < 4; ++i) {
+    const bool used = i < simplex.rank;
+    witness.hints[i] =
+        used ? simplex.vertex[i]->hint : support_func_guess_t::Zero();
+    witness.support_points[0][i] =
+        used ? Vec3s(simplex.vertex[i]->w0.cast<Scalar>()) : Vec3s::Zero();
+    witness.support_points[1][i] =
+        used ? Vec3s(simplex.vertex[i]->w1.cast<Scalar>()) : Vec3s::Zero();
+  }
 }
 
 /// Inflate the points along a normal.
@@ -177,6 +204,10 @@ void inflate(const MinkowskiDiff& shape, const Vec3ps& normal, Vec3ps& w0,
 }
 
 }  // namespace details
+
+void GJK::getWitnessSimplex(WitnessSimplex& witness) const {
+  details::getWitnessSimplex(*simplex, witness);
+}
 
 void GJK::getWitnessPointsAndNormal(const MinkowskiDiff& shape, Vec3ps& w0,
                                     Vec3ps& w1, Vec3ps& normal) const {
@@ -1457,6 +1488,10 @@ bool EPA::expand(size_t pass, const SimplexVertex& w, SimplexFace* f, size_t e,
     return true;
   }
   return false;
+}
+
+void EPA::getWitnessSimplex(WitnessSimplex& witness) const {
+  details::getWitnessSimplex(result, witness);
 }
 
 void EPA::getWitnessPointsAndNormal(const MinkowskiDiff& shape, Vec3ps& w0,

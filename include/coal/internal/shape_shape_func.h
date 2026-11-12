@@ -62,12 +62,13 @@ struct ShapeShapeDistancer {
     // Witness points on shape1 and shape2, normal pointing from shape1 to
     // shape2.
     Vec3s p1, p2, normal;
+    nsolver->witness_simplex = WitnessSimplex();
     const Scalar distance = ShapeShapeDistancer<ShapeType1, ShapeType2>::run(
         o1, tf1, o2, tf2, nsolver, request.enable_signed_distance, p1, p2,
         normal);
 
     result.update(distance, o1, o2, DistanceResult::NONE, DistanceResult::NONE,
-                  p1, p2, normal);
+                  p1, p2, normal, nsolver->witness_simplex);
 
     return distance;
   }
@@ -145,6 +146,8 @@ struct ShapeShapeCollider {
     const bool compute_penetration =
         request.enable_contact || (request.security_margin < 0);
     Vec3s p1, p2, normal;
+    // A specialized pair does not run the solver: reset its witness simplex.
+    nsolver->witness_simplex = WitnessSimplex();
     Scalar distance = internal::ShapeShapeDistance<ShapeType1, ShapeType2>(
         o1, tf1, o2, tf2, nsolver, compute_penetration, p1, p2, normal);
 
@@ -157,6 +160,7 @@ struct ShapeShapeCollider {
       if (result.numContacts() < request.num_max_contacts) {
         Contact contact(o1, o2, Contact::NONE, Contact::NONE, p1, p2, normal,
                         distance);
+        contact.witness = nsolver->witness_simplex;
         result.addContact(contact);
       }
     }

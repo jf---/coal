@@ -33,6 +33,7 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 
 #include <eigenpy/eigenpy.hpp>
+#include <eigenpy/std-array.hpp>
 
 #include "coal/fwd.hh"
 COAL_COMPILER_DIAGNOSTIC_PUSH
@@ -50,6 +51,7 @@ COAL_COMPILER_DIAGNOSTIC_POP
 #ifdef COAL_HAS_DOXYGEN_AUTODOC
 #include "doxygen_autodoc/functions.h"
 #include "doxygen_autodoc/coal/collision_data.h"
+#include "doxygen_autodoc/coal/data_types.h"
 #endif
 
 #include "../doc/python/doxygen.hh"
@@ -183,6 +185,28 @@ void exposeCollisionAPI() {
   }
   COAL_COMPILER_DIAGNOSTIC_POP
 
+  if (!eigenpy::register_symbolic_link_to_registered_type<WitnessSimplex>()) {
+    eigenpy::StdArrayPythonVisitor<std::array<SolverScalar, 4>, true>::expose(
+        "StdArr4_double");
+    eigenpy::exposeStdArrayEigenSpecificType<support_func_guess_t, 4>(
+        "Vector2i");
+    eigenpy::exposeStdArrayEigenSpecificType<Vec3s, 4>("Vec3s");
+    eigenpy::StdArrayPythonVisitor<std::array<std::array<Vec3s, 4>, 2>,
+                                   true>::expose("StdArr2_StdArr4_Vec3s");
+
+    class_<WitnessSimplex>("WitnessSimplex",
+                           doxygen::class_doc<WitnessSimplex>(),
+                           init<>(arg("self"), "Default constructor"))
+        .DEF_RW_CLASS_ATTRIB(WitnessSimplex, rank)
+        .DEF_RW_CLASS_ATTRIB(WitnessSimplex, weights)
+        .DEF_RW_CLASS_ATTRIB(WitnessSimplex, hints)
+        .DEF_RW_CLASS_ATTRIB(WitnessSimplex, support_points)
+        .DEF_CLASS_FUNC(WitnessSimplex, weightOnSupportHint)
+        .DEF_CLASS_FUNC(WitnessSimplex, swapShapes)
+        .def(self == self)
+        .def(self != self);
+  }
+
   if (!eigenpy::register_symbolic_link_to_registered_type<Contact>()) {
     class_<Contact>("Contact", doxygen::class_doc<Contact>(),
                     init<>(arg("self"), "Default constructor"))
@@ -211,6 +235,7 @@ void exposeCollisionAPI() {
         .DEF_RW_CLASS_ATTRIB(Contact, nearest_points)
         .DEF_RW_CLASS_ATTRIB(Contact, pos)
         .DEF_RW_CLASS_ATTRIB(Contact, penetration_depth)
+        .DEF_RW_CLASS_ATTRIB(Contact, witness)
         .def(self == self)
         .def(self != self)
         .def_pickle(PickleObject<Contact>())

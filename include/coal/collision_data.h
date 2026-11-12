@@ -105,6 +105,10 @@ struct COAL_DLLAPI Contact {
   /// @brief penetration depth
   Scalar penetration_depth;
 
+  /// @brief the GJK / EPA simplex behind nearest_points, in the order of o1
+  /// and o2 (rank 0 when none is behind them).
+  WitnessSimplex witness;
+
   /// @brief invalid contact primitive information
   static const int NONE = -1;
 
@@ -172,8 +176,8 @@ struct COAL_DLLAPI Contact {
   }
 
   /// @brief Equality operator. Two contacts are considered equal if they have
-  /// the same normal, the same nearest points and the same penetration depth
-  /// and if the shapes they point to are equal.
+  /// the same normal, the same nearest points, the same penetration depth and
+  /// the same witness simplex and if the shapes they point to are equal.
   /// Note: two contacts may be equal even if they point to different collision
   /// geometries o1/o2, as long as these geometries are equal.
   bool operator==(const Contact& other) const {
@@ -194,6 +198,7 @@ struct COAL_DLLAPI Contact {
     COAL_EQUAL_OPERATOR_CHECK(nearest_points[0] == other.nearest_points[0]);
     COAL_EQUAL_OPERATOR_CHECK(nearest_points[1] == other.nearest_points[1]);
     COAL_EQUAL_OPERATOR_CHECK(penetration_depth == other.penetration_depth);
+    COAL_EQUAL_OPERATOR_CHECK(witness == other.witness);
 
     return true;
   }
@@ -233,6 +238,7 @@ struct COAL_DLLAPI Contact {
        << ",\n";
     os << prefix << "  pos: " << pos.transpose() << ",\n";
     os << prefix << "  penetration_depth: " << penetration_depth << ",\n";
+    os << prefix << "  witness.rank: " << witness.rank << ",\n";
   }
 
   /// \copydoc disp
@@ -1537,6 +1543,10 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
   /// if object 2 is octree, it is the id of the cell
   int b2;
 
+  /// @brief the GJK / EPA simplex behind nearest_points, in the order of o1
+  /// and o2 (rank 0 when none is behind them).
+  WitnessSimplex witness;
+
   /// @brief invalid contact primitive information
   static const int NONE = -1;
 
@@ -1589,9 +1599,11 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
   }
 
   /// @brief add distance information into the result
+  /// @param witness_ the simplex behind p1 and p2 (rank 0 when none is)
   void update(Scalar distance, const CollisionGeometry* o1_,
               const CollisionGeometry* o2_, int b1_, int b2_, const Vec3s& p1,
-              const Vec3s& p2, const Vec3s& normal_) {
+              const Vec3s& p2, const Vec3s& normal_,
+              const WitnessSimplex& witness_ = WitnessSimplex()) {
     if (min_distance > distance) {
       min_distance = distance;
       o1 = o1_;
@@ -1601,6 +1613,7 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
       nearest_points[0] = p1;
       nearest_points[1] = p2;
       normal = normal_;
+      witness = witness_;
     }
   }
 
@@ -1615,6 +1628,7 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
       nearest_points[0] = other_result.nearest_points[0];
       nearest_points[1] = other_result.nearest_points[1];
       normal = other_result.normal;
+      witness = other_result.witness;
     }
   }
 
@@ -1627,6 +1641,7 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
     b1 = NONE;
     b2 = NONE;
     nearest_points[0] = nearest_points[1] = normal = inf;
+    witness = WitnessSimplex();
     timings.clear();
   }
 
@@ -1652,6 +1667,7 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
       COAL_EQUAL_OPERATOR_CHECK(*o2 == *other.o2);
     COAL_EQUAL_OPERATOR_CHECK(b1 == other.b1);
     COAL_EQUAL_OPERATOR_CHECK(b2 == other.b2);
+    COAL_EQUAL_OPERATOR_CHECK(witness == other.witness);
 
     return true;
   }
@@ -1679,6 +1695,7 @@ struct COAL_DLLAPI DistanceResult : QueryResult {
        << ",\n";
     os << prefix << "  nearest_points[1]: " << nearest_points[1].transpose()
        << ",\n";
+    os << prefix << "  witness.rank: " << witness.rank << ",\n";
   }
 
   /// \copydoc disp

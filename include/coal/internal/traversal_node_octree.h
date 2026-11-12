@@ -260,13 +260,17 @@ class COAL_DLLAPI OcTreeSolver {
         }
 
         Vec3s p1, p2, normal;
+        // A specialized pair does not run the solver: reset its witness
+        // simplex.
+        this->solver->witness_simplex = WitnessSimplex();
         const Scalar distance = internal::ShapeShapeDistance<Box, S>(
             &box, box_tf, &s, tf2, this->solver,
             this->drequest->enable_signed_distance, p1, p2, normal);
 
         this->dresult->update(distance, tree1, &s,
                               (int)(root1 - tree1->getRoot()),
-                              DistanceResult::NONE, p1, p2, normal);
+                              DistanceResult::NONE, p1, p2, normal,
+                              this->solver->witness_simplex);
 
         return drequest->isSatisfied(*dresult);
       } else
@@ -344,10 +348,10 @@ class COAL_DLLAPI OcTreeSolver {
       if (!contactNotAdded && ncontact == 1) {
         // Update contact information.
         const Contact& c = cresult->getContact(cresult->numContacts() - 1);
-        cresult->setContact(
-            cresult->numContacts() - 1,
-            Contact(tree1, c.o2, static_cast<int>(root1 - tree1->getRoot()),
-                    c.b2, c.pos, c.normal, c.penetration_depth));
+        Contact leaf(tree1, c.o2, static_cast<int>(root1 - tree1->getRoot()),
+                     c.b2, c.pos, c.normal, c.penetration_depth);
+        leaf.witness = c.witness;
+        cresult->setContact(cresult->numContacts() - 1, leaf);
       }
 
       // no need to call `internal::updateDistanceLowerBoundFromLeaf` here

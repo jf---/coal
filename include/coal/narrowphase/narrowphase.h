@@ -107,6 +107,11 @@ struct COAL_DLLAPI GJKSolver {
   /// @brief Minkowski difference used by GJK and EPA algorithms
   mutable details::MinkowskiDiff minkowski_difference;
 
+  /// @brief The simplex behind the witness points of the last call to
+  /// `shapeDistance`, in the order of that call's shapes. Its rank is 0 when
+  /// that call produced no witness points.
+  mutable WitnessSimplex witness_simplex;
+
  private:
   // Used internally for assertion checks.
   static constexpr Scalar m_dummy_precision = Scalar(1e-6);
@@ -369,6 +374,7 @@ struct COAL_DLLAPI GJKSolver {
     Scalar distance = this->shapeDistance<S2>(
         s2, tf2, s1, tf1, compute_penetration, p2, p1, normal);
     normal = -normal;
+    this->witness_simplex.swapShapes();
     return distance;
   }
 
@@ -460,6 +466,7 @@ struct COAL_DLLAPI GJKSolver {
     this->gjk.convergence_criterion = this->gjk_convergence_criterion;
     this->gjk.convergence_criterion_type = this->gjk_convergence_criterion_type;
     this->epa.status = details::EPA::Status::DidNotRun;
+    this->witness_simplex = WitnessSimplex();
 
     // Get initial guess for GJK: default, cached or bounding volume guess
     Vec3s guess;
@@ -619,6 +626,17 @@ struct COAL_DLLAPI GJKSolver {
     }
   }
 
+  /// GJK and EPA work in the frame of the first shape: move the witness
+  /// simplex's support points to the world frame.
+  void witnessSimplexToWorld(const Transform3s& tf1) const {
+    for (std::size_t s = 0; s < 2; ++s)
+      for (int k = 0; k < this->witness_simplex.rank; ++k) {
+        Vec3s& p = this->witness_simplex
+                       .support_points[s][static_cast<std::size_t>(k)];
+        p = tf1.transform(p);
+      }
+  }
+
   void GJKEarlyStopExtractWitnessPointsAndNormal(const Transform3s& tf1,
                                                  Scalar& distance, Vec3s& p1,
                                                  Vec3s& p2,
@@ -663,6 +681,8 @@ struct COAL_DLLAPI GJKSolver {
     Vec3ps p1_, p2_, normal_;
     gjk.getWitnessPointsAndNormal(this->minkowski_difference, p1_, p2_,
                                   normal_);
+    gjk.getWitnessSimplex(this->witness_simplex);
+    witnessSimplexToWorld(tf1);
     p1 = p1_.cast<Scalar>();
     p2 = p2_.cast<Scalar>();
     normal = normal_.cast<Scalar>();
@@ -686,6 +706,10 @@ struct COAL_DLLAPI GJKSolver {
     // However, we can cache the support function hint.
     // this->cached_guess = this->gjk.ray;
     this->support_func_cached_guess = this->gjk.support_hint;
+    // No witness points, but the simplex holds the origin: its weights name
+    // the point common to both shapes that it found.
+    gjk.getWitnessSimplex(this->witness_simplex);
+    witnessSimplexToWorld(tf1);
 
     distance = Scalar(this->gjk.distance);
     p1 = p2 = normal = Vec3s::Constant(std::numeric_limits<Scalar>::max());
@@ -702,6 +726,8 @@ struct COAL_DLLAPI GJKSolver {
     Vec3ps p1_, p2_, normal_;
     this->epa.getWitnessPointsAndNormal(this->minkowski_difference, p1_, p2_,
                                         normal_);
+    this->epa.getWitnessSimplex(this->witness_simplex);
+    witnessSimplexToWorld(tf1);
     p1 = p1_.cast<Scalar>();
     p2 = p2_.cast<Scalar>();
     normal = normal_.cast<Scalar>();

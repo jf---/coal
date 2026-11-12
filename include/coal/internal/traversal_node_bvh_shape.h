@@ -155,6 +155,8 @@ class MeshShapeCollisionTraversalNode
         this->request.enable_contact || (this->request.security_margin < 0);
     Vec3s c1, c2, normal;
     Scalar distance;
+    // A specialized pair does not run the solver: reset its witness simplex.
+    this->nsolver->witness_simplex = WitnessSimplex();
 
     if (RTIsIdentity) {
       static const Transform3s Id;
@@ -174,9 +176,10 @@ class MeshShapeCollisionTraversalNode
     if (distToCollision <= this->request.collision_distance_threshold) {
       sqrDistLowerBound = 0;
       if (this->result->numContacts() < this->request.num_max_contacts) {
-        this->result->addContact(Contact(this->model1, this->model2,
-                                         primitive_id, Contact::NONE, c1, c2,
-                                         normal, distance));
+        Contact contact(this->model1, this->model2, primitive_id, Contact::NONE,
+                        c1, c2, normal, distance);
+        contact.witness = this->nsolver->witness_simplex;
+        this->result->addContact(contact);
         assert(this->result->isCollision());
       }
     } else {
@@ -309,12 +312,15 @@ class MeshShapeDistanceTraversalNode
                         this->vertices[tri_id[2]]);
 
     Vec3s p1, p2, normal;
+    // A specialized pair does not run the solver: reset its witness simplex.
+    this->nsolver->witness_simplex = WitnessSimplex();
     const Scalar distance = internal::ShapeShapeDistance<TriangleP, S>(
         &tri, this->tf1, this->model2, this->tf2, this->nsolver,
         this->request.enable_signed_distance, p1, p2, normal);
 
     this->result->update(distance, this->model1, this->model2, primitive_id,
-                         DistanceResult::NONE, p1, p2, normal);
+                         DistanceResult::NONE, p1, p2, normal,
+                         this->nsolver->witness_simplex);
   }
 
   /// @brief Whether the traversal process can stop early
@@ -354,12 +360,14 @@ void meshShapeDistanceOrientedNodeleafComputeDistance(
                       vertices[tri_id[2]]);
 
   Vec3s p1, p2, normal;
+  // A specialized pair does not run the solver: reset its witness simplex.
+  nsolver->witness_simplex = WitnessSimplex();
   const Scalar distance = internal::ShapeShapeDistance<TriangleP, S>(
       &tri, tf1, &model2, tf2, nsolver, request.enable_signed_distance, p1, p2,
       normal);
 
   result.update(distance, model1, &model2, primitive_id, DistanceResult::NONE,
-                p1, p2, normal);
+                p1, p2, normal, nsolver->witness_simplex);
 }
 
 template <typename BV, typename S>
@@ -373,11 +381,13 @@ static inline void distancePreprocessOrientedNode(
                       vertices[tri_id[2]]);
 
   Vec3s p1, p2, normal;
+  // A specialized pair does not run the solver: reset its witness simplex.
+  nsolver->witness_simplex = WitnessSimplex();
   const Scalar distance = internal::ShapeShapeDistance<TriangleP, S>(
       &tri, tf1, &model2, tf2, nsolver, request.enable_signed_distance, p1, p2,
       normal);
   result.update(distance, model1, &model2, init_tri_id, DistanceResult::NONE,
-                p1, p2, normal);
+                p1, p2, normal, nsolver->witness_simplex);
 }
 
 }  // namespace details

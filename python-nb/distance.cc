@@ -59,6 +59,7 @@ void exposeDistanceAPI(nb::module_& m) {
       .DEF_RO_CLASS_ATTRIB(DistanceResult, o2)
       .DEF_RW_CLASS_ATTRIB(DistanceResult, b1)
       .DEF_RW_CLASS_ATTRIB(DistanceResult, b2)
+      .DEF_RW_CLASS_ATTRIB(DistanceResult, witness)
       .def("clear", &DistanceResult::clear)
       .def(nb::self == nb::self)
       .def(python::v2::CopyableVisitor<DistanceResult>())

@@ -13,6 +13,7 @@ COAL_COMPILER_DIAGNOSTIC_POP
 
 #include "fwd.h"
 #include <nanobind/operators.h>
+#include <nanobind/stl/array.h>
 
 using namespace coal;
 using namespace nb::literals;
@@ -87,6 +88,18 @@ void exposeCollisionAPI(nb::module_& m) {
       .def(python::v2::PickleVisitor<std::vector<CollisionRequest>>());
   COAL_COMPILER_DIAGNOSTIC_POP
 
+  nb::class_<WitnessSimplex>(m, "WitnessSimplex")
+      .def(nb::init<>())
+      .DEF_RW_CLASS_ATTRIB(WitnessSimplex, rank)
+      .DEF_RW_CLASS_ATTRIB(WitnessSimplex, weights)
+      .DEF_RW_CLASS_ATTRIB(WitnessSimplex, hints)
+      .DEF_RW_CLASS_ATTRIB(WitnessSimplex, support_points)
+      .DEF_CLASS_FUNC(WitnessSimplex, weightOnSupportHint)
+      .DEF_CLASS_FUNC(WitnessSimplex, swapShapes)
+      .def(nb::self == nb::self)
+      .def(nb::self != nb::self)
+      .def(python::v2::CopyableVisitor<WitnessSimplex>());
+
   nb::class_<Contact>(m, "Contact")
       .def(nb::init<>())
       .def(nb::init<const CollisionGeometry*, const CollisionGeometry*, int,
@@ -114,6 +127,7 @@ void exposeCollisionAPI(nb::module_& m) {
       .DEF_RW_CLASS_ATTRIB(Contact, nearest_points)
       .DEF_RW_CLASS_ATTRIB(Contact, pos)
       .DEF_RW_CLASS_ATTRIB(Contact, penetration_depth)
+      .DEF_RW_CLASS_ATTRIB(Contact, witness)
       .def(nb::self == nb::self)
       .def(nb::self != nb::self)
       .def(python::v2::CopyableVisitor<Contact>())

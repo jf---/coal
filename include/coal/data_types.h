@@ -39,6 +39,9 @@
 #ifndef COAL_DATA_TYPES_H
 #define COAL_DATA_TYPES_H
 
+#include <array>
+#include <utility>
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -117,6 +120,77 @@ enum GJKConvergenceCriterion { Default, DualityGap, Hybrid };
 /// @brief Wether the convergence criterion is scaled on the norm of the
 /// solution or not
 enum GJKConvergenceCriterionType { Relative, Absolute };
+
+/// @brief The final GJK / EPA simplex behind a pair of witness points.
+///
+/// The witness point on each shape is the combination, with `weights`, of the
+/// support points of the simplex's vertices on that shape. `hints[k]` holds the
+/// support hints the two shapes' support functions left for vertex k, in the
+/// order of the result's objects. For a convex polytope (`ConvexBase`) the hint
+/// is the index of the vertex the support function returned, so the weights
+/// tell which vertices of the polytope the witness point combines. A shape
+/// whose support picks among several parts can write the part it picked into
+/// its hint; the weight on the vertices from one part is then that part's
+/// barycentric share of the witness.
+///
+/// `rank` is 0 when no simplex is behind the result: no GJK / EPA ran (e.g. a
+/// pair with a specialized distance function), or it stopped early or failed.
+struct WitnessSimplex {
+  /// @brief Number of vertices of the simplex, in [0, 4]. Only the first
+  /// `rank` entries of `weights`, `hints` and `support_points` are set; the
+  /// others are zero.
+  int rank;
+
+  /// @brief Barycentric weights of the simplex's vertices in the witness
+  /// points. They are non-negative and sum to 1 when `rank > 0`.
+  std::array<SolverScalar, 4> weights;
+
+  /// @brief `hints[k][s]` is the support hint shape s's support function left
+  /// for vertex k.
+  std::array<support_func_guess_t, 4> hints;
+
+  /// @brief `support_points[s][k]` is vertex k's support point on shape s, in
+  /// the world frame. The weights combine them into the witness point on that
+  /// shape, before GJK / EPA's swept-sphere and midpoint corrections of the
+  /// reported points.
+  std::array<std::array<Vec3s, 4>, 2> support_points;
+
+  /// @brief Default constructor: rank 0, everything else zero.
+  WitnessSimplex() : rank(0) {
+    weights.fill(0);
+    hints.fill(support_func_guess_t::Zero());
+    support_points[0].fill(Vec3s::Zero());
+    support_points[1].fill(Vec3s::Zero());
+  }
+
+  /// @brief Sum of the weights of the vertices whose support hint on shape
+  /// `shape` (0 or 1) is `hint`.
+  SolverScalar weightOnSupportHint(int shape, int hint) const {
+    SolverScalar total = 0;
+    for (int k = 0; k < rank; ++k)
+      if (hints[static_cast<std::size_t>(k)][shape] == hint)
+        total += weights[static_cast<std::size_t>(k)];
+    return total;
+  }
+
+  /// @brief Exchange the two shapes' hints and support points, for a result
+  /// whose objects are swapped.
+  void swapShapes() {
+    for (std::size_t k = 0; k < 4; ++k) std::swap(hints[k][0], hints[k][1]);
+    std::swap(support_points[0], support_points[1]);
+  }
+
+  /// @brief Equality operator: same rank, weights, hints and support points.
+  bool operator==(const WitnessSimplex& other) const {
+    return rank == other.rank && weights == other.weights &&
+           hints == other.hints && support_points == other.support_points;
+  }
+
+  /// @brief Inequality operator. Negation of the equality operator.
+  bool operator!=(const WitnessSimplex& other) const {
+    return !(*this == other);
+  }
+};
 
 /// @brief Triangle with 3 indices for points
 template <typename _IndexType>

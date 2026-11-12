@@ -57,6 +57,9 @@ struct COAL_DLLAPI GJK {
     /// @brief support vector (i.e., the furthest point on the shape along the
     /// support direction)
     Vec3ps w;
+    /// @brief the support hints the two shapes' support functions left for
+    /// this vertex.
+    support_func_guess_t hint;
   };
 
   typedef unsigned char vertex_id_t;
@@ -166,6 +169,7 @@ struct COAL_DLLAPI GJK {
     sv.w0 = w0.cast<SolverScalar>();
     sv.w1 = w1.cast<SolverScalar>();
     sv.w = sv.w0 - sv.w1;
+    sv.hint = hint;
   }
 
   /// @brief whether the simplex enclose the origin
@@ -186,6 +190,10 @@ struct COAL_DLLAPI GJK {
   /// GJK. It points from shape0 to shape1.
   void getWitnessPointsAndNormal(const MinkowskiDiff& shape, Vec3ps& w0,
                                  Vec3ps& w1, Vec3ps& normal) const;
+
+  /// Get the simplex behind the witness points of getWitnessPointsAndNormal:
+  /// its rank, the weights of its vertices and their support hints.
+  void getWitnessSimplex(WitnessSimplex& witness) const;
 
   /// @brief get the guess from current simplex
   Vec3ps getGuessFromSimplex() const;
@@ -441,6 +449,10 @@ struct COAL_DLLAPI EPA {
   /// the shapes have a non-zero swept-sphere radius.
   void getWitnessPointsAndNormal(const MinkowskiDiff& shape, Vec3ps& w0,
                                  Vec3ps& w1, Vec3ps& normal) const;
+
+  /// Get the simplex behind the witness points of getWitnessPointsAndNormal:
+  /// its rank, the weights of its vertices and their support hints.
+  void getWitnessSimplex(WitnessSimplex& witness) const;
 
  private:
   /// @brief Allocates memory for the EPA algorithm.
